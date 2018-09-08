@@ -65,5 +65,16 @@ object ReplyGraph {
       .print
 
   }
+  /**
+    input
+    (<CAAdrtT0-sfxxUK-BrPC03ia7t1WR_ogA5uA6J5CSRvuON+snTg@mail.gmail.com>,Fabian Hueske <fhueske@apache.org>,<C869A196-EB43-4109-B81C-23FE9F726AC6@apache.org>)
+    (<CANMXwW0HOvk7n=h_rTv3RbK0E4ti1D7OdsY_3r8joib6rAAt2g@mail.gmail.com>,Aljoscha Krettek <aljoscha@apache.org>,<CANC1h_vn8E8TLXD=8szDN+0HO6JrU4AsCWgrXh8ojkA=FiPxNw@mail.gmail.com>)
+    (<0E10813D-5ED0-421F-9880-17C958A41724@fu-berlin.de>,Ufuk Celebi <u.celebi@fu-berlin.de>,null)
 
+    output
+    (sewen@apache.org,rmetzger@apache.org,75)
+    (aljoscha@apache.org,sewen@apache.org,45)
+    (fhueske@apache.org,rmetzger@apache.org,22)
+    (rmetzger@apache.org,fhueske@apache.org,22)
+    */
 }

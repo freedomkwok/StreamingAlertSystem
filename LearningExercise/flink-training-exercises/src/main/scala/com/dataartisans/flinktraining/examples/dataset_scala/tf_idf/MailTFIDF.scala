@@ -45,7 +45,7 @@ object MailTFIDF {
 
     // parse parameters
     val params = ParameterTool.fromArgs(args)
-    val input = params.getRequired("input")
+    val input = "flink/MailTFIDF.csv"//params.getRequired("input")
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -101,5 +101,12 @@ object MailTFIDF {
 
     tfidfs.print
   }
+  /*
+    (<CAPud8TrjpXYyqo6ur05-sjhUwRSh10XJVnCx_RuW9aUNKqjUTw@mail.gmail.com>,slide,2901.0)
+    (<CAPud8TrjpXYyqo6ur05-sjhUwRSh10XJVnCx_RuW9aUNKqjUTw@mail.gmail.com>,might,7.7774)
+    (<CAPud8TrjpXYyqo6ur05-sjhUwRSh10XJVnCx_RuW9aUNKqjUTw@mail.gmail.com>,case,21.1751)
+    (<CANC1h_s+BoRd7YMs5JTyhouDSC4x+5whH5feyfZOhG=_N7ZUsA@mail.gmail.com>,ship,68.2588)
+    (<CANC1h_s+BoRd7YMs5JTyhouDSC4x+5whH5feyfZOhG=_N7ZUsA@mail.gmail.com>,api,34.0721)
+   */
 }
 

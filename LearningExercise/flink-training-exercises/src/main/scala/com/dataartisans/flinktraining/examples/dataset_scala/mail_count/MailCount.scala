@@ -53,10 +53,24 @@ object MailCount {
                     // extract email address from sender
                     m._2.substring(m._2.lastIndexOf("<") + 1, m._2.length - 1) ) }
       // group by month and sender and count the number of records per group
+
+      //reduceGroup reduce list in group                    ("","",0) is initial value
+      //                                                               c is result value  m is current
       .groupBy(0, 1).reduceGroup{xx =>  xx.foldLeft(("","",0))( (c, m) => (m._1, m._2, c._3+1)) }
       // print the result
       .print
 
   }
-
+  /**
+    * input
+    * (2014-09-26-08:49:58,Fabian Hueske <fhueske@apache.org>)
+    * (2014-09-12-14:50:38,Aljoscha Krettek <aljoscha@apache.org>)
+    * (2014-09-30-09:16:29,Stephan Ewen <sewen@apache.org>)
+    * output
+    * (2014-09,fhueske@apache.org,16)
+    * (2014-09,aljoscha@apache.org,13)
+    * (2014-09,sewen@apache.org,24)
+    * (2014-10,fhueske@apache.org,14)
+    * (2014-10,aljoscha@apache.org,17)
+  */
 }
