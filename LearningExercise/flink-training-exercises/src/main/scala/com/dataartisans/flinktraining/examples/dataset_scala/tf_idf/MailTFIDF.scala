@@ -45,7 +45,7 @@ object MailTFIDF {
 
     // parse parameters
     val params = ParameterTool.fromArgs(args)
-    val input = "flink/MailTFIDF.csv"//params.getRequired("input")
+    val input = "C:\\Users\\rguo\\flink\\flinkMails"//params.getRequired("input")
 
     // set up the execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -58,15 +58,17 @@ object MailTFIDF {
     // read messageId and body field of the input data
     val mails : DataSet[(String,Array[String])] = env
       .readCsvFile[(String, String)](
-        input,
-        lineDelimiter = MBoxParser.MAIL_RECORD_DELIM,
-        fieldDelimiter = MBoxParser.MAIL_FIELD_DELIM,
-        includedFields = Array(0,4)
-      )
-      // convert message to lower case and split on word boundary
-      .map (m => (m._1, m._2.toLowerCase.split("\\s")
+    input,
+    lineDelimiter = MBoxParser.MAIL_RECORD_DELIM,
+    fieldDelimiter = MBoxParser.MAIL_FIELD_DELIM,
+    includedFields = Array(0,4)
+    )
+    // convert message to lower case and split on word boundary
+    .map (m =>
+      (m._1, m._2.toLowerCase.split("\\s")
       // retain only relevant words
-      .filter(s => isRelevantWord(s))))
+      .filter(s => isRelevantWord(s))
+      ))
 
     // count mails in data set
     val cnt = mails.count

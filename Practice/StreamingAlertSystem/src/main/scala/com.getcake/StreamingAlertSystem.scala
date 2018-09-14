@@ -30,7 +30,11 @@ import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
 import java.util._
 
+import com.getcake.automation.data.sources._
+import com.getcake.sourcetype.{AlertUse, StreamData}
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.co.CoMapFunction
 
 /**
   * An example that shows how to read from and write to Kafka. This will read String messages
@@ -51,30 +55,32 @@ object StreamingAlertSystem {
   def main(args: Array[String]): Unit = {
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.disableSysoutLogging
-    env.getConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(4, 10000))
-    // create a checkpoint every 5 seconds
-    //env.getCheckpointConfig
-    // make parameters available in the web interface
-    //env.getConfig.setGlobalJobParameters(params)
+    env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
+    env.setParallelism(1)
+    // use event time for the application
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    // configure watermark interval
+    env.getConfig.setAutoWatermarkInterval(1000L)
 
-    val consumerConfig : Properties  = new Properties()
-    consumerConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-west-2")
-    consumerConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "")
-    consumerConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "")
-    consumerConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
-    consumerConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "500")
+//    val consumerConfig : Properties  = new Properties()
+//    consumerConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-west-2")
+//    consumerConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "")
+//    consumerConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "")
+//    consumerConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
+//    consumerConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "500")
 
-    var kinesisStream = env.addSource(new FlinkKinesisConsumer("ConversionScore", new SchemaEventSchema, consumerConfig))
-      kinesisStream
-        .map{ (x) => {
-          println(x.clientID)
-          (x, 1)
-        }}
-        .keyBy(_._1.clientID)
-      .window(TumblingEventTimeWindows.of(Time.seconds(2)))
-          .sum(1)
+    val testKinesisStream : DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
+                               .assignTimestampsAndWatermarks(new TestKinesisAssigner)
+    testKinesisStream.print()
 
+    val alertUseStream = env.addSource(new AlertUseDataSource)
+                            .assignTimestampsAndWatermarks(new AlertUseAssigner)
+
+    testKinesisStream.connect(alertUseStream)
+
+
+
+    alertUseStream.print()
     env.execute("flink aggregate")
   }
 }
