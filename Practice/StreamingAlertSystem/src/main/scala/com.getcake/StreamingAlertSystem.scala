@@ -1,23 +1,5 @@
 package com.getcake
 
-/**
-  * Licensed to the Apache Software Foundation (ASF) under one
-  * or more contributor license agreements.  See the NOTICE file
-  * distributed with this work for additional information
-  * regarding copyright ownership.  The ASF licenses this file
-  * to you under the Apache License, Version 2.0 (the
-  * "License"); you may not use this file except in compliance
-  * with the License.  You may obtain a copy of the License at
-  *
-  *     http://www.apache.org/licenses/LICENSE-2.0
-  *
-  * Unless required by applicable law or agreed to in writing, software
-  * distributed under the License is distributed on an "AS IS" BASIS,
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  */
-
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time._
@@ -32,23 +14,15 @@ import java.util._
 
 import com.getcake.automation.data.sources._
 import com.getcake.sourcetype.{AlertUse, StreamData}
-import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
-
-/**
-  * An example that shows how to read from and write to Kafka. This will read String messages
-  * from the input topic, prefix them by a configured prefix and output to the output topic.
-  *
-  * Please pass the following arguments to run the example:
-  * {{{
-  * --input-topic test-input
-  * --output-topic test-output
-  * --bootstrap.servers localhost:9092
-  * --zookeeper.connect localhost:2181
-  * --group.id myconsumer
-  * }}}
-  */
+import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
+import org.apache.flink.streaming.api.windowing.triggers.{EventTimeTrigger, Trigger, TriggerResult}
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
 object StreamingAlertSystem {
 
@@ -67,20 +41,104 @@ object StreamingAlertSystem {
 //    consumerConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "")
 //    consumerConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "")
 //    consumerConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
-//    consumerConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "500")
+//    consumerConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, ThirtySecondsWindows"500")
 
-    val testKinesisStream : DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
+    val testKinesisStream : org.apache.flink.streaming.api.scala.DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
                                .assignTimestampsAndWatermarks(new TestKinesisAssigner)
-    testKinesisStream.print()
+    val countsPerThirtySecs = testKinesisStream
+      .keyBy(_.client_id)
+      .window(new CustomWindows(1000))
+      .trigger(new OneSecondIntervalTrigger)
+      .process(new MyCountFunction)
 
-    val alertUseStream = env.addSource(new AlertUseDataSource)
-                            .assignTimestampsAndWatermarks(new AlertUseAssigner)
-
-    testKinesisStream.connect(alertUseStream)
-
-
-
-    alertUseStream.print()
-    env.execute("flink aggregate")
+      countsPerThirtySecs.print()
+      env.execute("flink aggregate")
+//    val alertUseStream = env.addSource(new AlertUseDataSource)
+//                            .assignTimestampsAndWatermarks(new AlertUseAssigner)
+//     alertUseStream.print()
+//    testKinesisStream.connect(alertUseStream)
   }
+
+  /** A custom window that groups events into 30 second tumbling windows. */
+  class CustomWindows(windowPeriod: Long) extends WindowAssigner[Object, TimeWindow]
+  {
+    val windowSize: Long = windowPeriod
+
+    override def assignWindows(o: Object, ts: Long, ctx: WindowAssigner.WindowAssignerContext): java.util.List[TimeWindow] = {
+      val startTime = ts - (ts % windowSize)
+      val endTime = startTime + windowSize
+      // emitting the corresponding time window
+      Collections.singletonList(new TimeWindow(startTime, endTime))
+    }
+
+    override def getDefaultTrigger(env: environment.StreamExecutionEnvironment): Trigger[Object, TimeWindow] = {
+      EventTimeTrigger.create()
+    }
+
+    override def getWindowSerializer(executionConfig: ExecutionConfig): TypeSerializer[TimeWindow] = {
+      new TimeWindow.Serializer
+    }
+
+    override def isEventTime = true
+  }
+
+  class OneSecondIntervalTrigger extends Trigger[StreamData, TimeWindow]
+  {
+    override def onElement(r: StreamData, timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
+      // firstSeen will be false if not set yet
+      val firstSeen: ValueState[Boolean] = ctx.getPartitionedState(new ValueStateDescriptor[Boolean]("firstSeen", createTypeInformation[Boolean]))
+
+      // register initial timer only for first element
+      if (!firstSeen.value()) {
+        // compute time for next early firing by rounding watermark to second
+        val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
+        ctx.registerEventTimeTimer(t)
+        // register timer for the window end
+        ctx.registerEventTimeTimer(window.getEnd)
+        firstSeen.update(true)
+      }
+      // Continue. Do not evaluate per element
+      TriggerResult.CONTINUE
+    }
+
+    override def onEventTime(timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
+      if (timestamp == window.getEnd) {
+        // final evaluation and purge window state
+        TriggerResult.FIRE_AND_PURGE
+      } else {
+        // register next early firing timer
+        val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
+        if (t < window.getEnd) {
+          ctx.registerEventTimeTimer(t)
+        }
+        // fire trigger to evaluate window
+        TriggerResult.FIRE
+      }
+    }
+
+    override def onProcessingTime(timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
+      // Continue. We don't use processing time timers
+      TriggerResult.CONTINUE
+    }
+
+    override def clear(window: TimeWindow, ctx: Trigger.TriggerContext): Unit = {
+      // clear trigger state
+      val firstSeen: ValueState[Boolean] = ctx.getPartitionedState(new ValueStateDescriptor[Boolean]("firstSeen", createTypeInformation[Boolean]))
+      firstSeen.clear()
+    }
+  }
+
+  class MyCountFunction
+    extends ProcessWindowFunction[StreamData, Int, String, TimeWindow] {
+    override def process(key: String, ctx: Context, readings: Iterable[StreamData], out: Collector[Int]): Unit = {
+      // count readings
+      val cnt = readings.count(_ => true)
+      // get current watermark
+      val evalTime = ctx.currentWatermark
+
+      // emit result
+      out.collect(10)
+    }
+  }
+
 }
