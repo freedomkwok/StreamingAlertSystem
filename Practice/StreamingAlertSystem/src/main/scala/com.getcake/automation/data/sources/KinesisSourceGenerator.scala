@@ -19,17 +19,20 @@ class KinesisSourceGenerator extends RichParallelSourceFunction[StreamData] {
 
     // initialize 10 clients
     val clientIds = (1 to 10).map {
-      i => rand.nextInt(10)
+      i => rand.nextInt(2)
     }
 
     val campaignIds = (1 to 10).map {
-      i => rand.nextInt(20)
+      i => rand.nextInt(3)
     }
 
     val publisherIds = (1 to 10).map {
-      i => rand.nextInt(20)
+      i => rand.nextInt(3)
     }
 
+    val offerIds = (1 to 10).map {
+      i => rand.nextInt(3)
+    }
     // emit data until being canceled
     while (running) {
 
@@ -41,8 +44,9 @@ class KinesisSourceGenerator extends RichParallelSourceFunction[StreamData] {
       clientIds.foreach(clientId => srcCtx.collect(
                                           StreamData(
                                               Option(null), clientId, curTime, curTime,
-                                              Option(campaignIds(rand.nextInt(10))),
-                                              Option(publisherIds(rand.nextInt(10)))
+                                              Option(publisherIds(rand.nextInt(10))),
+                                              Option(offerIds(rand.nextInt(10))),
+                                              Option(campaignIds(rand.nextInt(10)))
                                           )))
 
       // wait for 100 ms
