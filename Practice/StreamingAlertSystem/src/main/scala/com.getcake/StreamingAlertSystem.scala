@@ -10,12 +10,11 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
-import java.util._
 
 import com.getcake.automation.data.sources._
-import com.getcake.aggregation.trigger._
-import com.getcake.aggregation.window._
-import com.getcake.aggregation.function._
+import com.getcake.aggregation.triggers._
+import com.getcake.aggregation.windowassigners._
+import com.getcake.aggregation.functions._
 import com.getcake.mappers.TrafficAlertFilterFunction
 import com.getcake.sourcetype.{AlertUse, StreamData}
 import org.apache.flink.api.common.ExecutionConfig
@@ -54,7 +53,7 @@ object StreamingAlertSystem {
 
     val alertUseStream = env.addSource(new AlertUseDataSource)
                             .assignTimestampsAndWatermarks(new AlertUseAssigner)
-    alertUseStream.print()
+
 
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
       .keyBy(_.client_id, _.ClientID)
@@ -65,6 +64,10 @@ object StreamingAlertSystem {
     //      .trigger(new OneSecondIntervalTrigger)
     //      .process(new CustomProcessFunction)
     activeAlertStreamData.print()
+    activeAlertStreamData.timeWindowAll(Time.seconds(1))
+        .trigger(new OneSecondIntervalTrigger)
+        .process(new CustomProcessFunction)
+        .print()
 
 
     env.execute("flink aggregate")

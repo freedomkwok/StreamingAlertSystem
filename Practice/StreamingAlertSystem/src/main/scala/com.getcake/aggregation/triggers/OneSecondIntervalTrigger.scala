@@ -1,14 +1,13 @@
-package com.getcake.aggregation.trigger
+package com.getcake.aggregation.triggers
 
-import com.getcake.sourcetype.StreamData
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor}
-import org.apache.flink.api.java.tuple.Tuple3
+import org.apache.flink.api.java.tuple.{Tuple3, Tuple5}
 import org.apache.flink.streaming.api.windowing.triggers.{Trigger, TriggerResult}
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
-class OneSecondIntervalTrigger extends Trigger[StreamData, TimeWindow]
+class OneSecondIntervalTrigger extends Trigger[Tuple5[String, Int, Int, Int, Int], TimeWindow]
 {
-  override def onElement(streamData: StreamData, timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
+  override def onElement(filteredStreamData: Tuple5[String, Int, Int, Int, Int], timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
     // firstSeen will be false if not set yet
     val alertUseMapper: MapState[Tuple3[Int, Int, Int], Boolean] = ctx.getPartitionedState(new MapStateDescriptor[Tuple3[Int, Int, Int], Boolean]("alertUseMapper", classOf[Tuple3[Int, Int, Int]], classOf[Boolean]))
 
