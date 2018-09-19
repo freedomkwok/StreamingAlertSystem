@@ -20,7 +20,6 @@ import com.getcake.sourcetype.{AlertUse, StreamData}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
@@ -64,7 +63,9 @@ object StreamingAlertSystem {
     //      .trigger(new OneSecondIntervalTrigger)
     //      .process(new CustomProcessFunction)
     activeAlertStreamData.print()
-    activeAlertStreamData.timeWindowAll(Time.seconds(1))
+    activeAlertStreamData.keyBy(_._1) // client_id
+
+        .window(new CustomWindowAssigner)
         .trigger(new OneSecondIntervalTrigger)
         .process(new CustomProcessFunction)
         .print()
