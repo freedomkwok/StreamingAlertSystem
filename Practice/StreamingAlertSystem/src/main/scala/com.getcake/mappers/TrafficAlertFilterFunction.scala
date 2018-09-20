@@ -1,53 +1,67 @@
 package com.getcake.mappers
 
-import com.getcake.StreamEvent
 import com.getcake.sourcetype.{AlertUse, StreamData}
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor}
-import org.apache.flink.api.java.tuple.Tuple3
-import org.apache.flink.api.scala.typeutils._
+import java.text.SimpleDateFormat
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.streaming.api.scala.createTypeInformation
 import org.apache.flink.util.Collector
 
-class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse, Tuple5[String, Int, Int, Int, Int]] {
+class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)] {
   //Map ClientID entity_id AlertUseId
-  lazy val alertUseMapper: MapState[Tuple3[Int, Int, Int], Boolean] =
+
+  lazy val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long)] =
     getRuntimeContext.getMapState(
-    new MapStateDescriptor[Tuple3[Int, Int, Int], Boolean]("alertUseMapper", createTypeInformation[Tuple3[Int, Int, Int]], Types.of[Boolean])
+    new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long)])
   )
-  lazy val counter : Int = 1
+
+  lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 
   override def processElement1(
     streamData: StreamData,
-    ctx: CoProcessFunction[StreamData, AlertUse, Tuple5[String, Int, Int, Int, Int]]#Context,
-    out: Collector[Tuple5[String, Int, Int, Int, Int]]): Unit = {
+    ctx: CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)]#Context,
+    out: Collector[(String, Int, Int, Int, Long, Long)]): Unit = {
 
-    val publisherKey : Tuple3[Int, Int, Int] = new Tuple3(streamData.client_id, streamData.publisher_id.getOrElse(0), 1)
-    val offerKey : Tuple3[Int, Int, Int] = new Tuple3(streamData.client_id, streamData.offer_id.getOrElse(0), 2)
-    val campaignKey : Tuple3[Int, Int, Int] = new Tuple3(streamData.client_id, streamData.campaign_id.getOrElse(0), 3)
+    val publisherKey : (Int, Int, Int) = (streamData.client_id, streamData.publisher_id.getOrElse(0), 1)
+    val offerKey : (Int, Int, Int) = (streamData.client_id, streamData.offer_id.getOrElse(0), 2)
+    val campaignKey : (Int, Int, Int) = (streamData.client_id, streamData.campaign_id.getOrElse(0), 3)
 
     // check if we may forward the reading
+    val hasPublisher = alertUseMapper.get(publisherKey)
+    if(hasPublisher != None)
+      out.collect(("filteredData", streamData.client_id, streamData.publisher_id.getOrElse(0), 1, hasPublisher._2, hasPublisher._3))
 
-    if(alertUseMapper.contains(publisherKey) || alertUseMapper.contains(offerKey) || alertUseMapper.contains(campaignKey)) {
-      out.collect(new Tuple5("filteredData", streamData.client_id, streamData.publisher_id.getOrElse(0), streamData.offer_id.getOrElse(0), streamData.campaign_id.getOrElse(0)))
-    }
+    val hasOffer = alertUseMapper.get(offerKey)
+    if(hasOffer != None)
+      out.collect(("filteredData", streamData.client_id, streamData.offer_id.getOrElse(0), 2, hasOffer._2, hasOffer._3))
+
+    val hasCampaign = alertUseMapper.get(campaignKey)
+    if(hasCampaign != None)
+      out.collect(("filteredData", streamData.client_id, streamData.campaign_id.getOrElse(0), 3, hasCampaign._2, hasCampaign._3))
   }
 
-  override def processElement2( alertUse: AlertUse,
-                                ctx: CoProcessFunction[StreamData, AlertUse, Tuple5[String, Int, Int, Int, Int]]#Context,
-                                out: Collector[Tuple5[String, Int, Int, Int, Int]]): Unit = {
+  override def processElement2(
+      alertUse: AlertUse,
+      ctx: CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)]#Context,
+      out: Collector[(String, Int, Int, Int, Long, Long)]): Unit = {
 
     // set disable forward timer
-    val alertUseKey : Tuple3[Int, Int, Int] = new Tuple3(alertUse.ClientID, alertUse.EntityID, alertUse.AlertUseID)
-    if(!alertUseMapper.contains(alertUseKey)) {
-      alertUseMapper.put(alertUseKey, true)
+    val alertUseKey : (Int, Int, Int) = (alertUse.ClientID, alertUse.EntityID, alertUse.EntityTypeID)
+      val begin = timeformater.parse(alertUse.AlertUseBegin).getTime
+      val end = timeformater.parse(alertUse.AlertUseEnd).getTime
+
+      if(!alertUseMapper.contains(alertUseKey)) {
+        println("Registered AlertUse: ", begin, end)
+        alertUseMapper.put(alertUseKey, (true, begin, end))
+      }
+
       ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime())
-    }
   }
 
-  override def onTimer( ts: Long,
-                        ctx: CoProcessFunction[StreamData, AlertUse, Tuple5[String, Int, Int, Int, Int]]#OnTimerContext,
-                        out: Collector[Tuple5[String, Int, Int, Int, Int]]): Unit = {
+  override def onTimer(
+      ts: Long,
+      ctx: CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)]#OnTimerContext,
+      out: Collector[(String, Int, Int, Int, Long, Long)]): Unit = {
 
   }
 }

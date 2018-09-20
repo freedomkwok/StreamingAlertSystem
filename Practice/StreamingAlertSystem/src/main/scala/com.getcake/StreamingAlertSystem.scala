@@ -3,31 +3,31 @@ package com.getcake
 import org.apache.flink.streaming.api.scala.{DataStream, _}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time._
-import org.apache.flink.util._
-import org.apache.flink.streaming.connectors.kinesis._
-import org.apache.flink.streaming.connectors.kinesis.config._
-import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.api.common.serialization.SimpleStringSchema
-import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
+  import org.apache.flink.util._
+  import org.apache.flink.streaming.connectors.kinesis._
+  import org.apache.flink.streaming.connectors.kinesis.config._
+  import org.apache.flink.api.common.restartstrategy.RestartStrategies
+  import org.apache.flink.api.common.serialization.SimpleStringSchema
+  import org.apache.flink.api.common.typeinfo._
+  import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
 
-import com.getcake.automation.data.sources._
-import com.getcake.aggregation.triggers._
-import com.getcake.aggregation.windowassigners._
-import com.getcake.aggregation.functions._
-import com.getcake.mappers.TrafficAlertFilterFunction
-import com.getcake.sourcetype.{AlertUse, StreamData}
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
-import org.apache.flink.streaming.api.functions.co.CoMapFunction
-import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
-import org.apache.flink.streaming.api.windowing.triggers.{EventTimeTrigger, Trigger, TriggerResult}
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+  import com.getcake.automation.data.sources._
+  import com.getcake.aggregation.triggers._
+  import com.getcake.aggregation.windowassigners._
+  import com.getcake.aggregation.functions._
+  import com.getcake.mappers.TrafficAlertFilterFunction
+  import com.getcake.sourcetype.{AlertUse, StreamData}
+  import org.apache.flink.api.common.ExecutionConfig
+  import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
+  import org.apache.flink.api.common.typeutils.TypeSerializer
+  import org.apache.flink.api.scala.createTypeInformation
+  import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
+  import org.apache.flink.streaming.api.functions.co.CoMapFunction
+  import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
+  import org.apache.flink.streaming.api.windowing.triggers.{EventTimeTrigger, Trigger, TriggerResult}
+  import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
-object StreamingAlertSystem {
+  object StreamingAlertSystem {
 
   def main(args: Array[String]): Unit = {
     // set up the execution environment
@@ -52,7 +52,7 @@ object StreamingAlertSystem {
 
     val alertUseStream = env.addSource(new AlertUseDataSource)
                             .assignTimestampsAndWatermarks(new AlertUseAssigner)
-
+    //alertUseStream.print()
 
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
       .keyBy(_.client_id, _.ClientID)
@@ -63,12 +63,12 @@ object StreamingAlertSystem {
     //      .trigger(new OneSecondIntervalTrigger)
     //      .process(new CustomProcessFunction)
     activeAlertStreamData.print()
-    activeAlertStreamData.keyBy(_._1) // client_id
 
-        .window(new CustomWindowAssigner)
-        .trigger(new OneSecondIntervalTrigger)
-        .process(new CustomProcessFunction)
-        .print()
+    activeAlertStreamData.keyBy(_._2) // client_id
+      .window(new CustomWindowAssigner)
+      .trigger(new OneSecondIntervalTrigger)
+      .process(new CustomProcessFunction)
+      .print()
 
 
     env.execute("flink aggregate")
