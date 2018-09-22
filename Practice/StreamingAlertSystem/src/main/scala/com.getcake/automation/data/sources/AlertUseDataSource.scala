@@ -15,7 +15,7 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
   override def run(srcCtx: SourceContext[AlertUse]): Unit = {
     val rand = new Random()
 
-    val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
     // initialize 10 clients
     val clientIds = (1 to 2).map {
       i => 1 + rand.nextInt(2)
@@ -46,7 +46,7 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
       ////          ))
       ////      })
       val begin = curTimeInstance.getTime
-      curTimeInstance.add(Calendar.MINUTE, (rand.nextInt(5) + 1)/2)
+      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 20)/2)
       srcCtx.collect(
                   AlertUse(
                     1, //clientID
@@ -60,7 +60,7 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
                   ))
 
       val begin1 = curTimeInstance.getTime
-      curTimeInstance.add(Calendar.MINUTE, (rand.nextInt(5) + 1)/2)
+      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(10) + 20)/2)
       srcCtx.collect(
         AlertUse(
           2,  //clientID
@@ -87,8 +87,7 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
 //          timeformater.format(curTimeInstance.getTime)
 //        ))
       // wait for 100 ms
-      running = false
-      Thread.sleep(60000)
+      Thread.sleep(6000)
     }
   }
 

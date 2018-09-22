@@ -62,13 +62,13 @@ import org.apache.flink.streaming.api.windowing.time._
     //      .window(new CustomWindows(1000))
     //      .trigger(new OneSecondIntervalTrigger)
     //      .process(new CustomProcessFunction)
-    activeAlertStreamData.print()
-
-    activeAlertStreamData.keyBy(_._2) // client_id
-      .window(new CustomWindowAssigner)
-      .trigger(new OneSecondIntervalTrigger)
-      .process(new CustomProcessFunction)
-      .print()
+//    activeAlertStreamData.print()
+//
+//    activeAlertStreamData.keyBy(_._2) // client_id
+//      .window(new CustomWindowAssigner)
+//      .trigger(new OneSecondIntervalTrigger)
+//      .process(new CustomProcessFunction)
+//      .print()
 
 
     env.execute("flink aggregate")

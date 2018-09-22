@@ -1,5 +1,6 @@
 package com.getcake.automation.data.sources
 
+import java.text.SimpleDateFormat
 import java.util.Calendar
 
 import com.getcake.sourcetype.StreamData
@@ -10,7 +11,7 @@ import scala.util.Random
 
 class KinesisSourceGenerator extends RichParallelSourceFunction[StreamData] {
   var running: Boolean = true
-
+  lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
   /** run() continuously emits SensorReadings by emitting them through the SourceContext. */
   override def run(srcCtx: SourceContext[StreamData]): Unit = {
 
@@ -39,7 +40,7 @@ class KinesisSourceGenerator extends RichParallelSourceFunction[StreamData] {
       // update temperature
       // get current time
       val curTime = Calendar.getInstance.getTimeInMillis
-
+      //println(timeformater.format(curTime))
       // emit new SensorReading
       clientIds.foreach(clientId => srcCtx.collect(
                                           StreamData(

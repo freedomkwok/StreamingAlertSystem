@@ -1,36 +1,34 @@
 package com.getcake.aggregation.triggers
 
-import org.apache.flink.api.common.state.{MapState, MapStateDescriptor}
+import java.text.SimpleDateFormat
+
+import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
+import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.streaming.api.windowing.triggers.{Trigger, TriggerResult}
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
 class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Long), TimeWindow]
 {
+  lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
+
   override def onElement(filteredStreamData: (String, Int, Int, Int, Long, Long), timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
-
     println("OneSecondIntervalTrigger onElement")
-    // firstSeen will be false if not set yet
-//    val alertUseMapper: MapState[(Int, Int, Int), Boolean] = ctx.getPartitionedState(new MapStateDescriptor[(Int, Int, Int), Boolean]("alertUseMapper", classOf[(Int, Int, Int)], classOf[Boolean]))
-//    val publisherKey : (Int, Int, Int) = (filteredStreamData._2, filteredStreamData._3, 1)
-//    val offerKey : (Int, Int, Int) = (filteredStreamData._2, filteredStreamData._4, 2)
-//    val campaignKey : (Int, Int, Int) = (filteredStreamData._2, filteredStreamData._5, 3)
+    val d_filteredStream :(String, Int, Int, Int, Long, Long) = filteredStreamData.asInstanceOf[(String, Int, Int, Int, Long, Long)]
+    val firstElementKey = d_filteredStream._2 + "_" + d_filteredStream._3 + "_" + d_filteredStream._4
 
-    // check if we may forward the reading
-    val t = ctx.getCurrentWatermark + (10000 - (ctx.getCurrentWatermark % 10000))
-    ctx.registerEventTimeTimer(t)
-    // register timer for the window end
-    ctx.registerEventTimeTimer(window.getEnd)
-    // register initial timer only for first element
-//    if(alertUseMapper.contains(publisherKey) || alertUseMapper.contains(offerKey) || alertUseMapper.contains(campaignKey))  {
-//      // compute time for next early firing by rounding watermark to second
-//
-//    }
-    // Continue. Do not evaluate per element
+    val firstSeen: ValueState[Boolean] = ctx.getPartitionedState(
+      new ValueStateDescriptor[Boolean](firstElementKey, createTypeInformation[Boolean]))
+
+    if(!firstSeen.value()) {
+      println("first seen ", firstElementKey, " now: ", timeformater.format(ctx.getCurrentWatermark) , " end at ", timeformater.format(window.getEnd))
+      val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
+      ctx.registerEventTimeTimer(t)
+      ctx.registerEventTimeTimer(window.getEnd)
+    }
     TriggerResult.CONTINUE
   }
 
   override def onEventTime(timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
-
     println("OneSecondIntervalTrigger onEventTime")
     if (timestamp == window.getEnd) {
       // final evaluation and purge window state
