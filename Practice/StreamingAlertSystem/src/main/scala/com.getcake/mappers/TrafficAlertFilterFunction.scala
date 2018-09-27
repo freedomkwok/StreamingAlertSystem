@@ -28,19 +28,23 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
 
     //println(ctx.timestamp(), ctx.timerService().currentWatermark(), ctx.timerService().currentProcessingTime())
     // check if we may forward the reading
+    val now = ctx.timestamp()
     if(alertUseMapper.contains(publisherKey)) {
       val hasPublisher = alertUseMapper.get(publisherKey)
-      out.collect(("filteredData", streamData.client_id, streamData.publisher_id.getOrElse(0), 1, hasPublisher._2, hasPublisher._3))
+      if(hasPublisher._2 <= now && now <= hasPublisher._3)
+        out.collect(("filteredData", streamData.client_id, streamData.publisher_id.getOrElse(0), 1, hasPublisher._2, hasPublisher._3))
     }
 
     if(alertUseMapper.contains(offerKey)) {
       val hasOffer = alertUseMapper.get(offerKey)
-      out.collect(("filteredData", streamData.client_id, streamData.offer_id.getOrElse(0), 2, hasOffer._2, hasOffer._3))
+      if(hasOffer._2 <= now && now <= hasOffer._3)
+        out.collect(("filteredData", streamData.client_id, streamData.offer_id.getOrElse(0), 2, hasOffer._2, hasOffer._3))
     }
-
+//
     if(alertUseMapper.contains(campaignKey)) {
       val hasCampaign = alertUseMapper.get(campaignKey)
-      out.collect(("filteredData", streamData.client_id, streamData.campaign_id.getOrElse(0), 3, hasCampaign._2, hasCampaign._3))
+      if(hasCampaign._2 <= now && now <= hasCampaign._3)
+        out.collect(("filteredData", streamData.client_id, streamData.campaign_id.getOrElse(0), 3, hasCampaign._2, hasCampaign._3))
     }
 
   }
@@ -58,7 +62,7 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
     try {
       if(!alertUseMapper.contains(alertUseKey)) {
         // println("Registered AlertUse: ", begin, end)
-        println("first seems processElement2: ", alertUseKey)
+        println("first alertUseMapper: ", alertUseKey)
         alertUseMapper.put(alertUseKey, (false, begin, end))
         //
         //      var current = ctx.timerService().currentWatermark()
@@ -68,6 +72,8 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
         println("begin: ", begin, timeformater.format(begin), " end: ", end, timeformater.format(end))
         //println("timenow: ", timeformater.format(current), current)
       }
+      else
+        println("new_Entry")
     }
     catch {
       case e: Exception => {

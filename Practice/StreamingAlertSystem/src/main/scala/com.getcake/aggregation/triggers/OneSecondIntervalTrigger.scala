@@ -22,7 +22,7 @@ class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Lon
       firstAlertUseSeems.update(true)
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
       ctx.registerEventTimeTimer(window.getEnd)
-      println("first seen ", alertUseKey, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
+      println("firstItem In Windows ", alertUseKey, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
     }
     TriggerResult.CONTINUE
   }

@@ -38,7 +38,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
-    env.setParallelism(1)
+    env.setParallelism(2)
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
@@ -54,33 +54,35 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
     val testKinesisStream: DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
       .assignTimestampsAndWatermarks(new TestKinesisAssigner).keyBy(_.client_id)
 
-//    val alertUseStream = env.addSource(new AlertUseDataSource)
-//                            .assignTimestampsAndWatermarks(new AlertUseAssigner)
+    val alertUseStream = env.addSource(new AlertUseDataSource)
+                            .assignTimestampsAndWatermarks(new AlertUseAssigner).keyBy(_.ClientID)
 
     //alertUseStream.print()
-    val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
-    val rand = new Random()
-    val curTimeInstance = Calendar.getInstance
-    val begin = timeformater.format(curTimeInstance.getTime)
-    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
-    val end = timeformater.format(curTimeInstance.getTime)
-
-    val begin1 = timeformater.format(curTimeInstance.getTime)
-    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
-    val end1 = timeformater.format(curTimeInstance.getTime)
-
-    val begin2 = timeformater.format(curTimeInstance.getTime)
-    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
-    val end2 = timeformater.format(curTimeInstance.getTime)
-
-    val alertUseStream: DataStream[AlertUse] = env
-      .fromCollection(Seq(
-        AlertUse(1,1,1,1,1,0, begin, end),
-        AlertUse(2,2,2,2,2,0, begin1, end1),
-        AlertUse(3,3,3,3,3,0, begin2, end2)
-      )).assignTimestampsAndWatermarks(new AlertUseAssigner).keyBy(_.ClientID)
+//    val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
+//    val rand = new Random()
+//    val curTimeInstance = Calendar.getInstance
+//    val begin = timeformater.format(curTimeInstance.getTime)
+//    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
+//    val end = timeformater.format(curTimeInstance.getTime)
+//
+//    val begin1 = timeformater.format(curTimeInstance.getTime)
+//    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
+//    val end1 = timeformater.format(curTimeInstance.getTime)
+//
+//    val begin2 = timeformater.format(curTimeInstance.getTime)
+//    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
+//    val end2 = timeformater.format(curTimeInstance.getTime)
+//
+//    val alertUseStream: DataStream[AlertUse] = env
+//      .fromCollection(Seq(
+//        AlertUse(1,1,1,1,1,0, begin, end),
+//        AlertUse(2,2,2,2,2,0, begin1, end1),
+//        AlertUse(3,3,3,3,3,0, begin2, end2)
+//      )).assignTimestampsAndWatermarks(new AlertUseAssigner).keyBy(_.ClientID)
+//    // END
 
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
+      .keyBy(_.client_id, _.ClientID)
       .process(new TrafficAlertFilterFunction)
 
     activeAlertStreamData
