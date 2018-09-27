@@ -73,13 +73,19 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
       ctx: CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)]#OnTimerContext,
       out: Collector[(String, Int, Int, Int, Long, Long)]): Unit = {
 
-      println("onTimer ", timeformater.format(ctx.timerService().currentWatermark()), timeformater.format(ctx.timerService().currentProcessingTime()), timeformater.format(ts))
+
       //remove list from alertUseMapper
       val mapIterator = alertUseMapper.iterator()
       while(mapIterator.hasNext) {
           val item = mapIterator.next()
-          if(item.getValue._3 == ts) //if endtime has arrive
+          if(item.getValue._3 == ts) //if endtime has arrive{
+          {
+            println("onTimer ", "watermark: ", timeformater.format(ctx.timerService().currentWatermark()), "processTime: ", timeformater.format(ctx.timerService().currentProcessingTime()), "registerTime: ", timeformater.format(ts))
+            val key = item.getKey
+            val value = item.getValue
+            println("removing: ", key, timeformater.format(value._3))
             mapIterator.remove()
+          }
       }
   }
 }

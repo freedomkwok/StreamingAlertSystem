@@ -21,7 +21,7 @@ class CustomWindowAssigner() extends WindowAssigner[Object, TimeWindow]
     val startTime = d_filteredStream._5 - (d_filteredStream._5 % 1000)
     val endTime = d_filteredStream._6 - (d_filteredStream._6 % 1000)
     // emitting the corresponding time window
-    println("CustomWindowAssigner assignWindows", timeformater.format(startTime) , timeformater.format(endTime))
+    //println("CustomWindowAssigner assignWindows", timeformater.format(startTime) , timeformater.format(endTime))
 
     Collections.singletonList(new TimeWindow(startTime, endTime))
     //Collections.singletonList(new TimeWindow(d_filteredStream._5, d_filteredStream._6))

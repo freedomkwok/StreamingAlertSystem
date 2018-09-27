@@ -63,7 +63,7 @@ import com.getcake.aggregation.windows._
       .window(new CustomWindowAssigner)
       .trigger(new OneSecondIntervalTrigger)
       .process(new CustomProcessFunction)
-      .print()
+       .print()
 
 
     env.execute("flink aggregate")

@@ -14,17 +14,15 @@ class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Lon
   override def onElement(filteredStreamData: (String, Int, Int, Int, Long, Long), timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
     val d_filteredStream :(String, Int, Int, Int, Long, Long) = filteredStreamData.asInstanceOf[(String, Int, Int, Int, Long, Long)]
 
-    val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long)] = ctx.getPartitionedState(
-      new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long)]))
+    val alertUseKey = d_filteredStream._2 + "_" + d_filteredStream._3 + "_" + d_filteredStream._4
+    val firstAlertUseSeems: ValueState[Boolean] = ctx.getPartitionedState(
+      new ValueStateDescriptor[Boolean](alertUseKey, createTypeInformation[Boolean]))
 
-    val key = (d_filteredStream._2, d_filteredStream._3, d_filteredStream._4)
-    val value = alertUseMapper.get(key)
-
-    if(value != null && !value._1) {
-      alertUseMapper.put(key, (true, value._2, value._3))
+    if(!firstAlertUseSeems.value()) {
+      firstAlertUseSeems.update(true)
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
       ctx.registerEventTimeTimer(window.getEnd)
-      println("first seen ", key, value, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
+      //println("first seen ", key, value, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
     }
     TriggerResult.CONTINUE
   }
