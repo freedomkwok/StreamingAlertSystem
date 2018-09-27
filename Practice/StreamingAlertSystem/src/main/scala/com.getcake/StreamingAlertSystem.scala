@@ -52,7 +52,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
     //    consumerConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, ThirtySecondsWindows"500")
 
     val testKinesisStream: DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
-      .assignTimestampsAndWatermarks(new TestKinesisAssigner)
+      .assignTimestampsAndWatermarks(new TestKinesisAssigner).keyBy(_.client_id)
 
 //    val alertUseStream = env.addSource(new AlertUseDataSource)
 //                            .assignTimestampsAndWatermarks(new AlertUseAssigner)
@@ -78,10 +78,9 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
         AlertUse(1,1,1,1,1,0, begin, end),
         AlertUse(2,2,2,2,2,0, begin1, end1),
         AlertUse(3,3,3,3,3,0, begin2, end2)
-      )).assignTimestampsAndWatermarks(new AlertUseAssigner)
+      )).assignTimestampsAndWatermarks(new AlertUseAssigner).keyBy(_.ClientID)
 
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
-      .keyBy(_.client_id, _.ClientID)
       .process(new TrafficAlertFilterFunction)
 
     activeAlertStreamData

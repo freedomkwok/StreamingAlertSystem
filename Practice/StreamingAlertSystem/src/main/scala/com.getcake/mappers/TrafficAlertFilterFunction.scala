@@ -26,7 +26,7 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
     val offerKey : (Int, Int, Int) = (streamData.client_id, streamData.offer_id.getOrElse(0), 2)
     val campaignKey : (Int, Int, Int) = (streamData.client_id, streamData.campaign_id.getOrElse(0), 3)
 
-    println(ctx.timestamp(), ctx.timerService().currentWatermark(), ctx.timerService().currentProcessingTime())
+    //println(ctx.timestamp(), ctx.timerService().currentWatermark(), ctx.timerService().currentProcessingTime())
     // check if we may forward the reading
     if(alertUseMapper.contains(publisherKey)) {
       val hasPublisher = alertUseMapper.get(publisherKey)
