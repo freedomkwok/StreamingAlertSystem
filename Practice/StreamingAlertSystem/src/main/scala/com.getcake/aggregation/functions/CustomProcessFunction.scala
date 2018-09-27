@@ -12,7 +12,7 @@ class CustomProcessFunction extends ProcessWindowFunction[(String, Int, Int, Int
     val evalTime = ctx.currentWatermark
 
     // emit result
-    println("CustomProcessFunction process")
+    print("CustomProcessFunction process ")
     out.collect(totalCount)
   }
 }

@@ -41,6 +41,7 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
       val hasCampaign = alertUseMapper.get(campaignKey)
       out.collect(("filteredData", streamData.client_id, streamData.campaign_id.getOrElse(0), 3, hasCampaign._2, hasCampaign._3))
     }
+
   }
 
   override def processElement2(
@@ -55,12 +56,15 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
 
     if(!alertUseMapper.contains(alertUseKey)) {
       // println("Registered AlertUse: ", begin, end)
-      alertUseMapper.put(alertUseKey, (true, begin, end))
-
-      var current = ctx.timerService().currentWatermark()
-      current = current + (1000 - (current % 1000))
-      ctx.timerService().registerEventTimeTimer(end+5000)
-      println("processElement2 ", "begin: ", begin, "end: ", end, "timenow: ", timeformater.format(current), current)
+      alertUseMapper.put(alertUseKey, (false, begin, end))
+//
+//      var current = ctx.timerService().currentWatermark()
+//        current = current + (1000 - (current % 1000))
+        ctx.timerService().registerEventTimeTimer(end) // invoke endtime
+        println("processElement2 ", " client_id: ",alertUseKey._1, "entity_id: ", alertUseKey._2 , "entity_type_id: ", alertUseKey._3)
+        println("begin: ", begin, timeformater.format(begin))
+        println("end: ", end, timeformater.format(end))
+        //println("timenow: ", timeformater.format(current), current)
       }
   }
 
@@ -69,6 +73,13 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
       ctx: CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)]#OnTimerContext,
       out: Collector[(String, Int, Int, Int, Long, Long)]): Unit = {
 
-      println("onTimer ", timeformater.format(ctx.timerService().currentProcessingTime()), ts)
+      println("onTimer ", timeformater.format(ctx.timerService().currentWatermark()), timeformater.format(ctx.timerService().currentProcessingTime()), timeformater.format(ts))
+      //remove list from alertUseMapper
+      val mapIterator = alertUseMapper.iterator()
+      while(mapIterator.hasNext) {
+          val item = mapIterator.next()
+          if(item.getValue._3 == ts) //if endtime has arrive
+            mapIterator.remove()
+      }
   }
 }

@@ -12,30 +12,32 @@ class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Lon
   lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
 
   override def onElement(filteredStreamData: (String, Int, Int, Int, Long, Long), timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
-    println("OneSecondIntervalTrigger onElement")
     val d_filteredStream :(String, Int, Int, Int, Long, Long) = filteredStreamData.asInstanceOf[(String, Int, Int, Int, Long, Long)]
-    val firstElementKey = d_filteredStream._2 + "_" + d_filteredStream._3 + "_" + d_filteredStream._4
 
-    val firstSeen: ValueState[Boolean] = ctx.getPartitionedState(
-      new ValueStateDescriptor[Boolean](firstElementKey, createTypeInformation[Boolean]))
+    val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long)] = ctx.getPartitionedState(
+      new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long)]))
 
-    if(!firstSeen.value()) {
-      println("first seen ", firstElementKey, " now: ", timeformater.format(ctx.getCurrentWatermark) , " end at ", timeformater.format(window.getEnd))
+    val key = (d_filteredStream._2, d_filteredStream._3, d_filteredStream._4)
+    val value = alertUseMapper.get(key)
+
+    if(value != null && !value._1) {
+      alertUseMapper.put(key, (true, value._2, value._3))
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
-      ctx.registerEventTimeTimer(t)
       ctx.registerEventTimeTimer(window.getEnd)
+      println("first seen ", key, value, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
     }
     TriggerResult.CONTINUE
   }
 
   override def onEventTime(timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
-    println("OneSecondIntervalTrigger onEventTime")
+    println("OneSecondIntervalTrigger onEventTime", "timestamp: ", timeformater.format(timestamp), "windoend ", timeformater.format(window.getEnd))
     if (timestamp == window.getEnd) {
       // final evaluation and purge window state
       TriggerResult.FIRE_AND_PURGE
     } else {
       // register next early firing timer
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
+      println("watermark: ", timeformater.format(t), t, t < window.getEnd )
       if (t < window.getEnd) {
         ctx.registerEventTimeTimer(t)
       }

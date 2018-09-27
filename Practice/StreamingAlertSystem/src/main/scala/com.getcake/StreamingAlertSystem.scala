@@ -12,6 +12,7 @@ import org.apache.flink.streaming.api.windowing.time._
   import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
 
   import com.getcake.automation.data.sources._
+import com.getcake.aggregation.windows._
   import com.getcake.aggregation.triggers._
   import com.getcake.aggregation.windowassigners._
   import com.getcake.aggregation.functions._
@@ -37,7 +38,7 @@ import org.apache.flink.streaming.api.windowing.time._
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
-    env.getConfig.setAutoWatermarkInterval(1000L)
+    env.getConfig.setAutoWatermarkInterval(5000L)
 
     //    val consumerConfig : Properties  = new Properties()
     //    consumerConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-west-2")
@@ -49,7 +50,6 @@ import org.apache.flink.streaming.api.windowing.time._
     val testKinesisStream: DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
       .assignTimestampsAndWatermarks(new TestKinesisAssigner)
 
-
     val alertUseStream = env.addSource(new AlertUseDataSource)
                             .assignTimestampsAndWatermarks(new AlertUseAssigner)
     //alertUseStream.print()
@@ -57,18 +57,13 @@ import org.apache.flink.streaming.api.windowing.time._
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
       .keyBy(_.client_id, _.ClientID)
       .process(new TrafficAlertFilterFunction)
-    //testKinesisStream.print()
-    //      .keyBy(_.client_id)
-    //      .window(new CustomWindows(1000))
-    //      .trigger(new OneSecondIntervalTrigger)
-    //      .process(new CustomProcessFunction)
-//    activeAlertStreamData.print()
-//
-//    activeAlertStreamData.keyBy(_._2) // client_id
-//      .window(new CustomWindowAssigner)
-//      .trigger(new OneSecondIntervalTrigger)
-//      .process(new CustomProcessFunction)
-//      .print()
+
+    activeAlertStreamData
+     .keyBy(_._2)
+      .window(new CustomWindowAssigner)
+      .trigger(new OneSecondIntervalTrigger)
+      .process(new CustomProcessFunction)
+      .print()
 
 
     env.execute("flink aggregate")

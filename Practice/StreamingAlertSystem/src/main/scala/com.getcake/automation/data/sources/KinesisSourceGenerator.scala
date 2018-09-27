@@ -51,7 +51,7 @@ class KinesisSourceGenerator extends RichParallelSourceFunction[StreamData] {
                                           )))
 
       // wait for 100 ms
-      Thread.sleep(500)
+      Thread.sleep(300)
     }
 
   }
