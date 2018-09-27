@@ -22,20 +22,21 @@ class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Lon
       firstAlertUseSeems.update(true)
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
       ctx.registerEventTimeTimer(window.getEnd)
-      //println("first seen ", key, value, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
+      println("first seen ", alertUseKey, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
     }
     TriggerResult.CONTINUE
   }
 
   override def onEventTime(timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
-    println("OneSecondIntervalTrigger onEventTime", "timestamp: ", timeformater.format(timestamp), "windoend ", timeformater.format(window.getEnd))
     if (timestamp == window.getEnd) {
+
+      println("OneSecondIntervalTrigger onEventTime FireAndPurge", "timestamp: ", timeformater.format(timestamp), "windoend ", timeformater.format(window.getEnd))
       // final evaluation and purge window state
       TriggerResult.FIRE_AND_PURGE
     } else {
       // register next early firing timer
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
-      println("watermark: ", timeformater.format(t), t, t < window.getEnd )
+      println("onEventTime Fire watermark: ", timeformater.format(t), t, t < window.getEnd )
       if (t < window.getEnd) {
         ctx.registerEventTimeTimer(t)
       }

@@ -38,7 +38,7 @@ import com.getcake.aggregation.windows._
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
-    env.getConfig.setAutoWatermarkInterval(5000L)
+    env.getConfig.setAutoWatermarkInterval(3000L)
 
     //    val consumerConfig : Properties  = new Properties()
     //    consumerConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-west-2")
