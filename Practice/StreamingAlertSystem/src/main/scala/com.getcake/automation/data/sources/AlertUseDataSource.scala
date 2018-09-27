@@ -100,7 +100,7 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
 //          timeformater.format(curTimeInstance.getTime)
 //        ))
       // wait for 100 ms
-      Thread.sleep(5000)
+      Thread.sleep(15000)
     }
   }
 
