@@ -10,9 +10,9 @@ import org.apache.flink.util.Collector
 class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)] {
   //Map ClientID entity_id AlertUseId
 
-  lazy val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long)] =
+  lazy val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long, Int)] =
     getRuntimeContext.getMapState(
-    new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long)])
+    new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long, Int)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long, Int)])
   )
 
   lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
@@ -63,7 +63,7 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
       if(!alertUseMapper.contains(alertUseKey)) {
         // println("Registered AlertUse: ", begin, end)
         println("first alertUseMapper: ", alertUseKey)
-        alertUseMapper.put(alertUseKey, (false, begin, end))
+        alertUseMapper.put(alertUseKey, (false, begin, end, 0))
         //
         //      var current = ctx.timerService().currentWatermark()
         //        current = current + (1000 - (current % 1000))
@@ -73,7 +73,7 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
         //println("timenow: ", timeformater.format(current), current)
       }
       else
-        println("new_Entry")
+        println("new_Entry alertUse: ", alertUse, timeformater.format(ctx.timestamp()))
     }
     catch {
       case e: Exception => {
@@ -95,10 +95,11 @@ class TrafficAlertFilterFunction extends CoProcessFunction[StreamData, AlertUse,
           if(item.getValue._3 == ts) //if endtime has arrive{
           {
             println("onTimer ", "watermark: ", timeformater.format(ctx.timerService().currentWatermark()), "processTime: ", timeformater.format(ctx.timerService().currentProcessingTime()), "registerTime: ", timeformater.format(ts))
+            var originValue = item.getValue
             val key = item.getKey
-            val value = item.getValue
-            mapIterator.remove()
-            println("onTimer Remove: ", key, timeformater.format(value._3))
+            println("onTimer before Reset: ", originValue)
+            alertUseMapper.put(key, (false, originValue._2, originValue._3, 0))
+            println("onTimer Reset: ", key)
           }
       }
   }

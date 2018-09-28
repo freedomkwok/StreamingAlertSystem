@@ -3,7 +3,7 @@ package com.getcake
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import org.apache.flink.streaming.api.scala.{DataStream, _}
+import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, _}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time._
 import org.apache.flink.util._
@@ -33,12 +33,15 @@ import org.apache.flink.streaming.api.windowing.triggers.{EventTimeTrigger, Trig
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
   object StreamingAlertSystem {
+                                      //clientid, entitiy_id, entitiy_type_id. count
+    val entityCapStatuses: OutputTag[(Int, Int, Int, Int)] =
+      new OutputTag[(Int, Int, Int, Int)]("entity_cap_status")
 
   def main(args: Array[String]): Unit = {
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
-    env.setParallelism(2)
+    env.setParallelism(1)
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
@@ -52,46 +55,23 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
     //    consumerConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, ThirtySecondsWindows"500")
 
     val testKinesisStream: DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
-      .assignTimestampsAndWatermarks(new TestKinesisAssigner).keyBy(_.client_id)
+      .assignTimestampsAndWatermarks(new TestKinesisAssigner)
 
     val alertUseStream = env.addSource(new AlertUseDataSource)
-                            .assignTimestampsAndWatermarks(new AlertUseAssigner).keyBy(_.ClientID)
-
-    //alertUseStream.print()
-//    val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
-//    val rand = new Random()
-//    val curTimeInstance = Calendar.getInstance
-//    val begin = timeformater.format(curTimeInstance.getTime)
-//    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
-//    val end = timeformater.format(curTimeInstance.getTime)
-//
-//    val begin1 = timeformater.format(curTimeInstance.getTime)
-//    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
-//    val end1 = timeformater.format(curTimeInstance.getTime)
-//
-//    val begin2 = timeformater.format(curTimeInstance.getTime)
-//    curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
-//    val end2 = timeformater.format(curTimeInstance.getTime)
-//
-//    val alertUseStream: DataStream[AlertUse] = env
-//      .fromCollection(Seq(
-//        AlertUse(1,1,1,1,1,0, begin, end),
-//        AlertUse(2,2,2,2,2,0, begin1, end1),
-//        AlertUse(3,3,3,3,3,0, begin2, end2)
-//      )).assignTimestampsAndWatermarks(new AlertUseAssigner).keyBy(_.ClientID)
-//    // END
+                            .assignTimestampsAndWatermarks(new AlertUseAssigner)
 
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
       .keyBy(_.client_id, _.ClientID)
       .process(new TrafficAlertFilterFunction)
 
-    activeAlertStreamData
+    val localoutput = activeAlertStreamData
      .keyBy(_._2)
       .window(new MiniBatchIntervalWindowAssigner(0))  //CustomWindowAssigner
       .trigger(new OneSecondIntervalTrigger)
       .process(new CustomProcessFunction)
-       .print()
 
+    localoutput.print()
+    localoutput.getSideOutput(entityCapStatuses)
 
     env.execute("flink aggregate")
   }

@@ -100,8 +100,22 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
 //          timeformater.format(curTimeInstance.getTime)
 //        ))
       // wait for 100 ms
-      Thread.sleep(20000)
+      Thread.sleep(50000)
       println("output new source ", running )
+      val latebegin = curTimeInstance.getTime
+      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 30)/2)
+
+      val alertUselate =  AlertUse(
+        1, //clientID
+        1, //AlertUse
+        1, //EnttyTypeID
+        1, //EntityID
+        1,  //AlertTypeID
+        rand.nextInt(6) * 5000L, //interval t x 30sec
+        timeformater.format(latebegin), //begin time
+        timeformater.format(curTimeInstance.getTime)
+      )
+      srcCtx.collect(alertUselate)
     }
   }
 

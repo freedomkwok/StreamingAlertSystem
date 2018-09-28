@@ -14,15 +14,15 @@ class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Lon
   override def onElement(filteredStreamData: (String, Int, Int, Int, Long, Long), timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
     val d_filteredStream :(String, Int, Int, Int, Long, Long) = filteredStreamData.asInstanceOf[(String, Int, Int, Int, Long, Long)]
 
-    val alertUseKey = d_filteredStream._2 + "_" + d_filteredStream._3 + "_" + d_filteredStream._4
+    val entityKey = d_filteredStream._2 + "_" + d_filteredStream._3 + "_" + d_filteredStream._4
     val firstAlertUseSeems: ValueState[Boolean] = ctx.getPartitionedState(
-      new ValueStateDescriptor[Boolean](alertUseKey, createTypeInformation[Boolean]))
+      new ValueStateDescriptor[Boolean](entityKey, createTypeInformation[Boolean]))
 
     if(!firstAlertUseSeems.value()) {
       firstAlertUseSeems.update(true)
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
       ctx.registerEventTimeTimer(window.getEnd)
-      println("firstItem In Windows ", alertUseKey, " watermark: ", timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
+      println("firstItem In Windows ", entityKey, " watermark: ",t, timeformater.format(t) , "windowEnd: ", timeformater.format(window.getEnd))
     }
     TriggerResult.CONTINUE
   }

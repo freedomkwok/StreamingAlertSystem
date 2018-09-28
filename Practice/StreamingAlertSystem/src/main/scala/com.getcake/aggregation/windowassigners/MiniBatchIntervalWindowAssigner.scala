@@ -29,7 +29,7 @@ class MiniBatchIntervalWindowAssigner(interval: Int) extends WindowAssigner[Obje
       null
     }
     else {
-      println("assignWindows ontime" , timeformater.format(ts))
+      println("assignWindows ontime:" , d_filteredStream._2, d_filteredStream._3, timeformater.format(ts))
       Collections.singletonList(new TimeWindow(startTime, endTime))
     }
 

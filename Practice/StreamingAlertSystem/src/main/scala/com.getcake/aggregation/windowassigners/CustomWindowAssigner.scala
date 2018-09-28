@@ -15,6 +15,7 @@ import org.apache.flink.streaming.api.windowing.windows._
 class CustomWindowAssigner() extends WindowAssigner[Object, TimeWindow]
 {
   lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
+
   override def assignWindows(filteredStream: Object, ts: Long, ctx: WindowAssigner.WindowAssignerContext): java.util.List[TimeWindow] = {
 
     val d_filteredStream :(String, Int, Int, Int, Long, Long) = filteredStream.asInstanceOf[(String, Int, Int, Int, Long, Long)]
