@@ -37,15 +37,18 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
     val entityCapStatuses: OutputTag[(Int, Int, Int, Int)] =
       new OutputTag[(Int, Int, Int, Int)]("entity_cap_status")
 
+    val alertUseStatus: OutputTag[(Int, Int, Int, Long, Long)] =
+      new OutputTag[(Int, Int, Int, Long, Long)]("alert_use_status")
+
   def main(args: Array[String]): Unit = {
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getCheckpointConfig.setCheckpointInterval(10 * 1000)
+    env.getCheckpointConfig.setCheckpointInterval(5 * 1000)
     env.setParallelism(1)
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
-    env.getConfig.setAutoWatermarkInterval(3000L)
+    env.getConfig.setAutoWatermarkInterval(2000L)
 
     //    val consumerConfig : Properties  = new Properties()
     //    consumerConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-west-2")
@@ -56,22 +59,26 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
     val testKinesisStream: DataStream[StreamData] = env.addSource(new KinesisSourceGenerator)
       .assignTimestampsAndWatermarks(new TestKinesisAssigner)
+      .keyBy(_.client_id)
 
     val alertUseStream = env.addSource(new AlertUseDataSource)
                             .assignTimestampsAndWatermarks(new AlertUseAssigner)
+                            .keyBy(_.ClientID)
+
+    //alertUseStream.process().getSideOutput()
 
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
       .keyBy(_.client_id, _.ClientID)
-      .process(new TrafficAlertFilterFunction)
+      .process(new TrafficAlertFilterFunction(true))
 
-    val localoutput = activeAlertStreamData
+    val localOutput = activeAlertStreamData
      .keyBy(_._2)
       .window(new MiniBatchIntervalWindowAssigner(0))  //CustomWindowAssigner
       .trigger(new OneSecondIntervalTrigger)
       .process(new CustomProcessFunction)
 
-    localoutput.print()
-    localoutput.getSideOutput(entityCapStatuses)
+    localOutput.print()
+    localOutput.getSideOutput(entityCapStatuses)
 
     env.execute("flink aggregate")
   }

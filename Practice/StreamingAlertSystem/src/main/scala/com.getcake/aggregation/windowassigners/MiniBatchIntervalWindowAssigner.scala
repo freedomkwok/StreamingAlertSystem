@@ -10,7 +10,7 @@ import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner
 import org.apache.flink.streaming.api.windowing.triggers.{EventTimeTrigger, Trigger}
 import org.apache.flink.streaming.api.windowing.windows._
 
-class MiniBatchIntervalWindowAssigner(interval: Int) extends WindowAssigner[Object, TimeWindow]{
+class MiniBatchIntervalWindowAssigner(interval: Int) extends WindowAssigner[Object, TimeWindow] {
 
   lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
 
@@ -29,6 +29,7 @@ class MiniBatchIntervalWindowAssigner(interval: Int) extends WindowAssigner[Obje
       null
     }
     else {
+      //print("_ ")
       println("assignWindows ontime:" , d_filteredStream._2, d_filteredStream._3, timeformater.format(ts))
       Collections.singletonList(new TimeWindow(startTime, endTime))
     }

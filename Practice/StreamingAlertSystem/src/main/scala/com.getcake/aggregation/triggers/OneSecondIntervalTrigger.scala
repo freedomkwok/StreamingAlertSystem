@@ -28,17 +28,19 @@ class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Lon
   }
 
   override def onEventTime(timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
+    println()
     if (timestamp == window.getEnd) {
-
       println("OneSecondIntervalTrigger onEventTime FireAndPurge", "timestamp: ", timeformater.format(timestamp), "windoend ", timeformater.format(window.getEnd))
       // final evaluation and purge window state
       TriggerResult.FIRE_AND_PURGE
     } else {
       // register next early firing timer
       val t = ctx.getCurrentWatermark + (1000 - (ctx.getCurrentWatermark % 1000))
+
       println("onEventTime Fire watermark: ", timeformater.format(t), t, t < window.getEnd )
       if (t < window.getEnd) {
         ctx.registerEventTimeTimer(t)
+
       }
       // fire trigger to evaluate window
       TriggerResult.FIRE
@@ -47,12 +49,12 @@ class OneSecondIntervalTrigger extends Trigger[(String, Int, Int, Int, Long, Lon
 
   override def onProcessingTime(timestamp: Long, window: TimeWindow, ctx: Trigger.TriggerContext): TriggerResult = {
     // Continue. We don't use processing time timers
-    println("OneSecondIntervalTrigger onProcessingTime")
+    println("onProcessingTime")
     TriggerResult.CONTINUE
   }
 
   override def clear(window: TimeWindow, ctx: Trigger.TriggerContext): Unit = {
     // clear trigger state
-    println("OneSecondIntervalTrigger clear")
+    println("clear")
   }
 }
