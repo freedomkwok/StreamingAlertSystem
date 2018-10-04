@@ -1,9 +1,8 @@
 package com.getcake.mappers
 
+import java.text.SimpleDateFormat
 import com.getcake.sourcetype.{AlertUse, StreamData}
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
-import java.text.SimpleDateFormat
-
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction

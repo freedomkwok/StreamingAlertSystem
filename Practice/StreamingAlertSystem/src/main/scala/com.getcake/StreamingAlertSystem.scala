@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.scala.createTypeInformation
 
 import scala.util.Random
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
@@ -48,6 +49,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
+    env.setStateBackend(new RocksDBStateBackend("", true))
     env.getConfig.setAutoWatermarkInterval(2000L)
 
     //    val consumerConfig : Properties  = new Properties()
