@@ -1,20 +1,25 @@
 package com.getcake.mappers
 
 import java.text.SimpleDateFormat
+import java.util
+
 import com.getcake.sourcetype.{AlertUse, StreamData}
-import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
+import org.apache.flink.api.common.state._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.streaming.api.scala.createTypeInformation
 import org.apache.flink.util.Collector
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
+import org.apache.flink.streaming.api.checkpoint.{CheckpointedFunction, ListCheckpointed}
 
-class TrafficAlertFilterFunction(useCheckPoint: Boolean) extends CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)] with CheckpointedFunction {
+import scala.collection.JavaConverters.seqAsJavaListConverter
+
+class TrafficAlertFilterFunction(useCheckPoint: Boolean) extends CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)] with ListCheckpointed[(Int, Int, Int, Boolean, Long, Long, Int)] {
   //Map ClientID entity_id AlertUseId
-  lazy val keyAlertUseDescriptor = new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long, Int)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long, Int)])
+  final val alertUseCheckPointDescriptor = new ListStateDescriptor[(Int, Int, Int, Boolean, Long, Long, Int)]("alertUseMapper", createTypeInformation[(Int, Int, Int, Boolean, Long, Long, Int)])
+  lazy val alertUseMapLocalDescriptor = new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long, Int)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long, Int)])
+  lazy val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long, Int)] = getRuntimeContext.getMapState(alertUseMapLocalDescriptor)
   lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
-  lazy val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long, Int)] = getRuntimeContext.getMapState(keyAlertUseDescriptor)
 
   lazy val loadedCheckPoint: ValueState[Boolean] =
     getRuntimeContext.getState(
@@ -26,14 +31,12 @@ class TrafficAlertFilterFunction(useCheckPoint: Boolean) extends CoProcessFuncti
       new ValueStateDescriptor[Boolean]("loadingCheckingPoint", Types.of[Boolean])
     )
 
-  var alertUseMapperCheckPoint: MapState[(Int, Int, Int), (Boolean, Long, Long, Int)] = _
-
   override def processElement1(
     streamData: StreamData,
     ctx: CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)]#Context,
     out: Collector[(String, Int, Int, Int, Long, Long)]): Unit = {
 
-    waitForloadingCheckPoint()
+    //waitForloadingCheckPoint("from process1")
 
     val publisherKey : (Int, Int, Int) = (streamData.client_id, streamData.publisher_id.getOrElse(0), 1)
     val offerKey : (Int, Int, Int) = (streamData.client_id, streamData.offer_id.getOrElse(0), 2)
@@ -66,7 +69,7 @@ class TrafficAlertFilterFunction(useCheckPoint: Boolean) extends CoProcessFuncti
       ctx: CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long)]#Context,
       out: Collector[(String, Int, Int, Int, Long, Long)]): Unit = {
 
-    waitForloadingCheckPoint()
+    //waitForloadingCheckPoint("from process2")
     // set disable forward timer
     val alertUseKey : (Int, Int, Int) = (alertUse.ClientID, alertUse.EntityID, alertUse.EntityTypeID)
     val begin = timeformater.parse(alertUse.AlertUseBegin).getTime
@@ -117,21 +120,22 @@ class TrafficAlertFilterFunction(useCheckPoint: Boolean) extends CoProcessFuncti
       }
   }
 
-  def waitForloadingCheckPoint() = {
+  var alertUseMapperCheckPoint: ListState[(Int, Int, Int, Boolean, Long, Long, Int)] = _
+
+  def waitForloadingCheckPoint(fromPlace : String) = {
       if(!loadedCheckPoint.value()) {
-        println("waitForloadingCheckPoint")
+        println("waitForloadingCheckPoint ", fromPlace)
         if (loadingCheckPoint.value())
           while(!loadedCheckPoint.value()) {
             println("waiting")
-            Thread.sleep(500)
           }
         else {
           loadingCheckPoint.update(true)
           var counter = 0
-          val mapIterator = alertUseMapperCheckPoint.iterator()
-          while (mapIterator.hasNext) {
-            val item = mapIterator.next()
-            this.alertUseMapper.put(item.getKey, item.getValue)
+          val listIterator = this.alertUseMapperCheckPoint.get().iterator()
+          while (listIterator.hasNext) {
+            val item = listIterator.next()
+            this.alertUseMapper.put((item._1, item._2, item._3), (item._4, item._5, item._6, item._7))
             counter += 1
           }
 
@@ -141,16 +145,33 @@ class TrafficAlertFilterFunction(useCheckPoint: Boolean) extends CoProcessFuncti
       }
   }
 
-  override def initializeState(initCtx: FunctionInitializationContext): Unit = {
-    this.alertUseMapperCheckPoint = initCtx.getKeyedStateStore.getMapState(keyAlertUseDescriptor)
+//  override def initializeState(initCtx: FunctionInitializationContext): Unit = {
+//    println("checkpoint initializeState")
+//    this.alertUseMapperCheckPoint = initCtx.getOperatorStateStore.getListState(alertUseCheckPointDescriptor)
+//  }
+
+  override def restoreState(restoreState: util.List[(Int, Int, Int, Boolean, Long, Long, Int)]): Unit = {
+    var counter = 0
+    val listIterator = restoreState.iterator()
+    while (listIterator.hasNext) {
+      val item = listIterator.next()
+      this.alertUseMapper.put((item._1, item._2, item._3), (item._4, item._5, item._6, item._7))
+      counter += 1
+    }
+    println("checkpoint loaded: ", counter)
   }
 
-  override def snapshotState(ctx: FunctionSnapshotContext): Unit = {
+  override def snapshotState(chkpntId: Long, ts: Long): java.util.List[(Int, Int, Int, Boolean, Long, Long, Int)] = {
     val mapIterator = alertUseMapper.iterator()
+    var saveContent = List[(Int, Int, Int, Boolean, Long, Long, Int)]()
     while(mapIterator.hasNext) {
       val item = mapIterator.next()
-      this.alertUseMapperCheckPoint.put(item.getKey, item.getValue)
+      val key = item.getKey
+      val _value = item.getValue
+      print("saving checkpoint ", (key._1, key._2, key._3))
+      saveContent = saveContent :+ (key._1, key._2, key._3, _value._1, _value._2, _value._3, _value._4)
     }
-    println("saving checkingpoint", ctx.getCheckpointId, ctx.getCheckpointTimestamp)
+    println("saving checkpoint ", chkpntId, ts)
+    saveContent.asJava
   }
 }

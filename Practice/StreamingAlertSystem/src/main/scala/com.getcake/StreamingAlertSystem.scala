@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
 import org.apache.flink.streaming.api.windowing.triggers.{EventTimeTrigger, Trigger, TriggerResult}
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import java.net.URI
 
   object StreamingAlertSystem {
                                       //clientid, entitiy_id, entitiy_type_id. count
@@ -44,12 +45,12 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
   def main(args: Array[String]): Unit = {
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getCheckpointConfig.setCheckpointInterval(5 * 1000)
+    env.getCheckpointConfig.setCheckpointInterval(8 * 1000)
     env.setParallelism(1)
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
-    env.setStateBackend(new RocksDBStateBackend("", true))
+    env.setStateBackend(new RocksDBStateBackend("hdfs://localhost:9000/checkpoints" , true))
     env.getConfig.setAutoWatermarkInterval(2000L)
 
     //    val consumerConfig : Properties  = new Properties()
