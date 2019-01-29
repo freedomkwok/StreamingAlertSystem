@@ -18,7 +18,7 @@ import com.getcake.aggregation.windows._
 import com.getcake.aggregation.triggers._
 import com.getcake.aggregation.windowassigners._
 import com.getcake.aggregation.functions._
-import com.getcake.mappers.TrafficAlertFilterFunction
+import com.getcake.mappers.{TrafficAlertFilterFunction, TrafficCapMapper}
 import com.getcake.sourcetype.{AlertUse, StreamData}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
@@ -26,7 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.scala.createTypeInformation
 
 import scala.util.Random
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
+import org.apache.flink.contrib.streaming.state._
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
@@ -44,13 +45,14 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
   def main(args: Array[String]): Unit = {
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getCheckpointConfig.setCheckpointInterval(5 * 1000)
+    //env.getCheckpointConfig.setCheckpointInterval(5 * 1000)
     env.setParallelism(1)
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
-    env.setStateBackend(new RocksDBStateBackend("", true))
-    env.getConfig.setAutoWatermarkInterval(2000L)
+    //env.setStateBackend(new FsStateBackend("hdfs://localhost:8088"))
+    env.getConfig.setAutoWatermarkInterval(1000L)
+
 
     //    val consumerConfig : Properties  = new Properties()
     //    consumerConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-west-2")
@@ -71,14 +73,15 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
     val activeAlertStreamData = testKinesisStream.connect(alertUseStream)
       .keyBy(_.client_id, _.ClientID)
-      .process(new TrafficAlertFilterFunction(true))
+      .process(new TrafficCapMapper(true))
 
     val localOutput = activeAlertStreamData
      .keyBy(_._2)
       .window(new MiniBatchIntervalWindowAssigner(0))  //CustomWindowAssigner
-      .trigger(new OneSecondIntervalTrigger)
-      .process(new CustomProcessFunction)
+      .trigger(new CapTrigger)
+      .process(new CapProcessFunction)
 
+    println("-----------Result----------------")
     localOutput.print()
     localOutput.getSideOutput(entityCapStatuses)
 

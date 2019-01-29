@@ -8,4 +8,5 @@ case class AlertUse (
     AlertUseTypeID: Int,
     AlertUseInterval: Long,
     AlertUseBegin: String,
-    AlertUseEnd: String)
+    AlertUseEnd: String,
+    Cap: Int)

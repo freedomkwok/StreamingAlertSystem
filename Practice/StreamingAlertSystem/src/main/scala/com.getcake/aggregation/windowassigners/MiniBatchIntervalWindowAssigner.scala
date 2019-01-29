@@ -16,7 +16,8 @@ class MiniBatchIntervalWindowAssigner(interval: Int) extends WindowAssigner[Obje
 
   override def assignWindows(filteredStream: Object, ts: Long, ctx: WindowAssigner.WindowAssignerContext): java.util.List[TimeWindow] = {
 
-    val d_filteredStream :(String, Int, Int, Int, Long, Long) = filteredStream.asInstanceOf[(String, Int, Int, Int, Long, Long)]
+    val d_filteredStream :(String, Int, Int, Int, Long, Long, Int, Long) = filteredStream.asInstanceOf[(String, Int, Int, Int, Long, Long, Int, Long)]
+
     val startTime = d_filteredStream._5 - (d_filteredStream._5 % 1000)
     val endTime = d_filteredStream._6 - (d_filteredStream._6 % 1000)
 
@@ -30,7 +31,7 @@ class MiniBatchIntervalWindowAssigner(interval: Int) extends WindowAssigner[Obje
     }
     else {
       //print("_ ")
-      println("assignWindows ontime:" , d_filteredStream._2, d_filteredStream._3, timeformater.format(ts))
+     // println("assignWindows ontime:" , d_filteredStream._2, d_filteredStream._3, timeformater.format(ts))
       Collections.singletonList(new TimeWindow(startTime, endTime))
     }
 

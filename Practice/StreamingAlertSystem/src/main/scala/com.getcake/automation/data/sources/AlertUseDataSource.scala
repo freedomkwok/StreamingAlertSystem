@@ -28,7 +28,7 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
       // get current time
       val curTimeInstance = Calendar.getInstance
       val begin = curTimeInstance.getTime
-      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 180)/2)
+      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(1000) + 1000)/2)
       val end = curTimeInstance.getTime
       val alertUse1 =  AlertUse(
         1, //clientID
@@ -38,25 +38,41 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
         1,  //AlertTypeID
         rand.nextInt(6) * 5000L, //interval t x 30sec
         timeformater.format(begin), //begin time
-        timeformater.format(end)
+        timeformater.format(end),  //begin time
+        (rand.nextInt(200) + 200/2) // Cap
       )
       srcCtx.collect(alertUse1)
 
-      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 180)/2)
-      val alertUse2 = AlertUse(
-        1,  //clientID
+      val alertUsex1 =  AlertUse(
+        1, //clientID
         2, //AlertUse
         2, //EnttyTypeID
         2, //EntityID
         2,  //AlertTypeID
         rand.nextInt(6) * 5000L, //interval t x 30sec
         timeformater.format(begin), //begin time
-        timeformater.format(end)
+        timeformater.format(end),  //begin time
+        (rand.nextInt(200) + 200/2) // Cap
+      )
+      srcCtx.collect(alertUsex1)
+
+      val end2 = curTimeInstance.getTime
+      val alertUse2 = AlertUse(
+        1,  //clientID
+        2, //AlertUse
+        2, //EnttyTypeID
+        3, //EntityID
+        2,  //AlertTypeID
+        rand.nextInt(6) * 5000L, //interval t x 30sec
+        timeformater.format(begin), //begin time
+        timeformater.format(end2),  //begin time
+        (rand.nextInt(200) + 200/2) // Cap
       )
       srcCtx.collect(alertUse2)
 
+      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(1000) + 1000)/2)
       val begin3 = curTimeInstance.getTime
-      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(20) + 180)/2)
+      curTimeInstance.add(Calendar.SECOND, (rand.nextInt(1000) + 1000)/2)
       val alertUse3 = AlertUse(
         3,  //clientID
         3, //AlertUse
@@ -65,7 +81,8 @@ class AlertUseDataSource extends RichParallelSourceFunction[AlertUse] {
         3,  //AlertTypeID
         rand.nextInt(6) * 5000L, //interval t x 30sec
         timeformater.format(begin), //begin time
-        timeformater.format(curTimeInstance.getTime)
+        timeformater.format(end2),  //begin time
+        (rand.nextInt(200) + 200/2) // Cap
       )
       srcCtx.collect(alertUse3)
       // emit new SensorReading
