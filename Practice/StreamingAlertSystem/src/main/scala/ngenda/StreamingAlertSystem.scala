@@ -1,4 +1,4 @@
-package com.getcake
+package com.ngenda
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -13,13 +13,13 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
-import com.getcake.automation.data.sources._
-import com.getcake.aggregation.windows._
-import com.getcake.aggregation.triggers._
-import com.getcake.aggregation.windowassigners._
-import com.getcake.aggregation.functions._
-import com.getcake.mappers.{TrafficAlertFilterFunction, TrafficCapMapper}
-import com.getcake.sourcetype.{AlertUse, StreamData}
+import com.ngenda.automation.data.sources._
+import com.ngenda.aggregation.windows._
+import com.ngenda.aggregation.triggers._
+import com.ngenda.aggregation.windowassigners._
+import com.ngenda.aggregation.functions._
+import com.ngenda.mappers.{TrafficAlertFilterFunction, TrafficCapMapper}
+import com.ngenda.sourcetype.{AlertUse, StreamData}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -45,12 +45,12 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
   def main(args: Array[String]): Unit = {
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    //env.getCheckpointConfig.setCheckpointInterval(5 * 1000)
+    env.getCheckpointConfig.setCheckpointInterval(15 * 1000)
     env.setParallelism(1)
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
-    //env.setStateBackend(new FsStateBackend("hdfs://localhost:8088"))
+    env.setStateBackend(new FsStateBackend("hdfs://localhost:19000/flink_checkpoint1"))
     env.getConfig.setAutoWatermarkInterval(1000L)
 
 
@@ -76,10 +76,10 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
       .process(new TrafficCapMapper(true))
 
     val localOutput = activeAlertStreamData
-     .keyBy(_._2)
-      .window(new MiniBatchIntervalWindowAssigner(0))  //CustomWindowAssigner
-      .trigger(new CapTrigger)
-      .process(new CapProcessFunction)
+                      .keyBy(_._2)
+                      .window(new MiniBatchIntervalWindowAssigner(0))  //CustomWindowAssigner
+                      .trigger(new CapTrigger)
+                      .process(new CapProcessFunction)
 
     println("-----------Result----------------")
     localOutput.print()

@@ -1,4 +1,4 @@
-package com.getcake.aggregation.functions
+package com.ngenda.aggregation.functions
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -8,7 +8,7 @@ import org.apache.flink.streaming.api.scala.createTypeInformation
 import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
-import com.getcake.StreamingAlertSystem
+import com.ngenda.StreamingAlertSystem
 
 class CapProcessFunction extends ProcessWindowFunction[(String, Int, Int, Int, Long, Long, Int, Long), Map[(Int, Int, Int), Int], Int, TimeWindow] {
 

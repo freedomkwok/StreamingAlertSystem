@@ -1,4 +1,4 @@
-package com.getcake.aggregation.triggers
+package com.ngenda.aggregation.triggers
 
 import java.text.SimpleDateFormat
 

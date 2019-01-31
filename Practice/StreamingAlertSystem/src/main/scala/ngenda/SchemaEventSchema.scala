@@ -1,4 +1,4 @@
-package com.getcake
+package com.ngenda
 
 import org.apache.flink.api.common.serialization.DeserializationSchema
 import org.apache.flink.api.common.serialization.SerializationSchema

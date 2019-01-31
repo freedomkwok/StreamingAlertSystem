@@ -1,4 +1,4 @@
-package com.getcake.sourcetype
+package com.ngenda.sourcetype
 
 case class StreamData (click_id: Option[String],
                         client_id: Int,

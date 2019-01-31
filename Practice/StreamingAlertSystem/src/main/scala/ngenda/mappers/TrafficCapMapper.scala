@@ -1,10 +1,10 @@
-package com.getcake.mappers
+package com.ngenda.mappers
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import com.getcake.sourcetype.{AlertUse, StreamData}
-import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
+import com.ngenda.sourcetype.{AlertUse, StreamData}
+import org.apache.flink.api.common.state.{ListStateDescriptor, ListState, MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
@@ -13,12 +13,12 @@ import org.apache.flink.util.Collector
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.joda.time.Interval
 
-class TrafficCapMapper(useCheckPoint: Boolean) extends CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long, Int, Long)] {//} with CheckpointedFunction {
+class TrafficCapMapper(useCheckPoint: Boolean) extends CoProcessFunction[StreamData, AlertUse, (String, Int, Int, Int, Long, Long, Int, Long)] with CheckpointedFunction {
 //Map ClientID entity_id AlertUseId
   lazy val timeformater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:sssZ")
   private val keyAlertUseDescriptor = new MapStateDescriptor[(Int, Int, Int), (Boolean, Long, Long, Int)]("alertUseMapper", createTypeInformation[(Int, Int, Int)], createTypeInformation[(Boolean, Long, Long, Int)])
 
-  lazy val alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long, Int)] = getRuntimeContext.getMapState(keyAlertUseDescriptor)
+  var alertUseMapper: MapState[(Int, Int, Int), (Boolean, Long, Long, Int)] = null
 
   override def processElement1(
                                 streamData: StreamData,
@@ -43,6 +43,7 @@ class TrafficCapMapper(useCheckPoint: Boolean) extends CoProcessFunction[StreamD
 //    println("processtime", processTime, timeformater.format(processTime))
       ///println("streamData: ", streamData)
     // print(" publisherKey")
+
     if(alertUseMapper.contains(publisherKey)) {
       val hasPublisher = alertUseMapper.get(publisherKey)
 
@@ -126,6 +127,8 @@ class TrafficCapMapper(useCheckPoint: Boolean) extends CoProcessFunction[StreamD
       if(!alertUseMapper.contains(alertUseKey)) {
         // println("Registered AlertUse: ", begin, end)
         println("Fresh alertUseMapper: ", alertUseKey)
+        println("========================================")
+        println()
         alertUseMapper.put(alertUseKey, (false, begin, end, alertUse.Cap))
         //
         //      var current = ctx.timerService().currentWatermark()
@@ -154,17 +157,43 @@ class TrafficCapMapper(useCheckPoint: Boolean) extends CoProcessFunction[StreamD
     println("onTimer:")
   }
 
+  @transient private var checkpointedState: ListState[(Int, Int, Int, Boolean, Long, Long, Int)] = null
 
-  //  override def initializeState(initCtx: FunctionInitializationContext): Unit = {
-  //    this.alertUseMapperCheckPoint = initCtx.getKeyedStateStore.getMapState(keyAlertUseDescriptor)
-  //  }
-  //
-  //  override def snapshotState(ctx: FunctionSnapshotContext): Unit = {
-  //    val mapIterator = alertUseMapper.iterator()
-  //    while(mapIterator.hasNext) {
-  //      val item = mapIterator.next()
-  //      this.alertUseMapperCheckPoint.put(item.getKey, item.getValue)
-  //    }
-  //    println("saving checkingpoint", ctx.getCheckpointId, ctx.getCheckpointTimestamp)
-  //  }
+  override def initializeState(initCtx: FunctionInitializationContext): Unit = {
+    println("alertUseMapper initializeState")
+    alertUseMapper = initCtx.getKeyedStateStore.getMapState(keyAlertUseDescriptor)
+
+    lazy val descriptor = new ListStateDescriptor[(Int, Int, Int, Boolean, Long, Long, Int)] ("alertUserMap",  createTypeInformation[(Int, Int, Int, Boolean, Long, Long, Int)])
+
+    val backendStateAlertList = initCtx.getOperatorStateStore.getListState(descriptor)
+
+    println("initCtx.isRestored", initCtx.isRestored)
+
+    if (initCtx.isRestored) {
+      val iterator = backendStateAlertList.get().iterator()
+      alertUseMapper.clear()
+      while(iterator.hasNext) {
+        val item = iterator.next()
+        println("LOADING SNAPSOT: ", item)
+        val alertUseKey : (Int, Int, Int) = (item._1, item._2, item._3)
+        val alertUseValue : (Boolean, Long, Long, Int) = (item._4, item._5, item._6, item._7)
+        alertUseMapper.put(alertUseKey, alertUseValue)
+      }
+    }
+  }
+
+  override def snapshotState(ctx: FunctionSnapshotContext): Unit = {
+    println("saving alertUseMapper snapshotState")
+    checkpointedState.clear()
+    println("saving", alertUseMapper.keys())
+    val mapIterator = alertUseMapper.iterator()
+    while(mapIterator.hasNext) {
+      val item = mapIterator.next()
+      val key = item.getKey
+      val value = item.getValue
+      checkpointedState.add((key._1, key._2, key._3, value._1, value._2, value._3, value._4))
+    }
+    println("checkpointedState", checkpointedState)
+    println("saving checkingpoint", ctx.getCheckpointId, ctx.getCheckpointTimestamp)
+  }
 }

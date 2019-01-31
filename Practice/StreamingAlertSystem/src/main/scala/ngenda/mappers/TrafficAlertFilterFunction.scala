@@ -1,9 +1,9 @@
-package com.getcake.mappers
+package com.ngenda.mappers
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import com.getcake.sourcetype.{AlertUse, StreamData}
+import com.ngenda.sourcetype.{AlertUse, StreamData}
 import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}

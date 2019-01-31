@@ -1,6 +1,6 @@
-package com.getcake.automation.data.sources
+package com.ngenda.automation.data.sources
 
-import com.getcake.sourcetype.AlertUse
+import com.ngenda.sourcetype.AlertUse
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.windowing.time.Time
 

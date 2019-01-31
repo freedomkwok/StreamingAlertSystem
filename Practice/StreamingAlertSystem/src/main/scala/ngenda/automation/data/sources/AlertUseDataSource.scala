@@ -1,9 +1,9 @@
-package com.getcake.automation.data.sources
+package com.ngenda.automation.data.sources
 
 import java.util.Calendar
 import java.text.SimpleDateFormat
 
-import com.getcake.sourcetype._
+import com.ngenda.sourcetype._
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 
