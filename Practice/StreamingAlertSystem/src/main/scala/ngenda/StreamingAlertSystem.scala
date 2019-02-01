@@ -46,7 +46,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
     // set up the execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getCheckpointConfig.setCheckpointInterval(15 * 1000)
-    env.setParallelism(3)
+    env.setParallelism(1)
     // use event time for the application
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     // configure watermark interval
