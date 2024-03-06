@@ -1,6 +1,6 @@
 
-*/.idea/target/*
-*/.idea/*
+SessionCounter/.idea/
+SessionCounter/.idea/*
 
 # Gradle:
 */.idea/gradle.xml
